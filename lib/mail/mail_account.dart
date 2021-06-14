@@ -27,10 +27,8 @@ class MailAccount extends SerializableObject {
   set outgoing(MailServerConfig value) => attributes['outgoing'] = value;
 
   /// The domain that is reported to the outgoing SMTP service
-  String get outgoingClientDomain =>
-      attributes['outgoingClientDomain'] ?? 'enough.de';
-  set outgoingClientDomain(String value) =>
-      attributes['outgoingClientDomain'] = value;
+  String get outgoingClientDomain => attributes['outgoingClientDomain'] ?? 'enough.de';
+  set outgoingClientDomain(String value) => attributes['outgoingClientDomain'] = value;
 
   /// Convenience getter for the from MailAddress
   MailAddress get fromAddress => MailAddress(userName, email);
@@ -41,8 +39,7 @@ class MailAccount extends SerializableObject {
 
   /// Optional indicator if the mail service supports + based aliases, e.g. `user+alias@domain.com`.
   bool get supportsPlusAliases => attributes['supportsPlusAliases'] ?? false;
-  set supportsPlusAliases(bool value) =>
-      attributes['supportsPlusAliases'] = value;
+  set supportsPlusAliases(bool value) => attributes['supportsPlusAliases'] = value;
 
   /// Checks if this account has an attribute with the specified name
   bool hasAttribute(String name) => attributes.containsKey(name);
@@ -55,9 +52,7 @@ class MailAccount extends SerializableObject {
   }
 
   /// Creates a mail account with a plain authentication for the preferred incoming and preferred outgoing server.
-  static MailAccount fromDiscoveredSettings(
-      String name, String email, String password, ClientConfig config,
-      {String userName, String outgoingClientDomain}) {
+  static MailAccount fromDiscoveredSettings(String name, String email, String password, ClientConfig config, {String userName, String outgoingClientDomain}) {
     userName ??= config.preferredIncomingServer.getUserName(email);
     userName ??= email;
     var auth = PlainAuthentication(userName, password);
@@ -78,18 +73,81 @@ class MailAccount extends SerializableObject {
     return account;
   }
 
+  /// Creates a mail account from manual settings with a simple user-name/password authentication.
+  ///
+  /// You need to specify the account [name], the associated [email], the [incomingHost], [outgoingHost] and [password].
+  /// When the [userName] is different from the email, it must also be specified.
+  /// You should specify the [outgoingClientDomain] for sending messages, this defaults to `enough.de`.
+  /// The [incomingType] defaults to [ServerType.imap], the [incomingPort] to `993` and the [incomingSocketType] to [SocketType.ssl].
+  /// The [outgoingType] defaults to [ServerType.smtp], the [outgoingPort] to `465` and the [outgoingSocketType] to [SocketType.ssl].
+  static MailAccount fromManualSettings(
+    String name,
+    String email,
+    String incomingHost,
+    String outgoingHost,
+    String password, {
+    ServerType incomingType = ServerType.imap,
+    ServerType outgoingType = ServerType.smtp,
+    String userName,
+    String outgoingClientDomain,
+    incomingPort = 993,
+    outgoingPort = 465,
+    SocketType incomingSocketType = SocketType.ssl,
+    SocketType outgoingSocketType = SocketType.ssl,
+  }) {
+    final auth = PlainAuthentication(userName ?? email, password);
+    return fromManualSettingsWithAuth(name, email, incomingHost, outgoingHost, auth, incomingType: incomingType, outgoingType: outgoingType, outgoingClientDomain: outgoingClientDomain);
+  }
+
+  /// Creates a mail account from manual settings with the specified [auth]entication.
+  ///
+  /// You need to specify the account [name], the associated [email], the [incomingHost], [outgoingHost] and [auth].
+  /// You can specify a different authentication for the outgoing server using the [outgoingAuth] parameter.
+  /// You should specify the [outgoingClientDomain] for sending messages, this defaults to `enough.de`.
+  /// The [incomingType] defaults to [ServerType.imap], the [incomingPort] to `993` and the [incomingSocketType] to [SocketType.ssl].
+  /// The [outgoingType] defaults to [ServerType.smtp], the [outgoingPort] to `465` and the [outgoingSocketType] to [SocketType.ssl].
+  static MailAccount fromManualSettingsWithAuth(
+    String name,
+    String email,
+    String incomingHost,
+    String outgoingHost,
+    MailAuthentication auth, {
+    ServerType incomingType = ServerType.imap,
+    ServerType outgoingType = ServerType.smtp,
+    MailAuthentication outgoingAuth,
+    String outgoingClientDomain = 'enough.de',
+    incomingPort = 993,
+    outgoingPort = 465,
+    SocketType incomingSocketType = SocketType.ssl,
+    SocketType outgoingSocketType = SocketType.ssl,
+  }) {
+    final incoming = MailServerConfig()
+      ..authentication = auth
+      ..serverConfig = ServerConfig(
+        type: incomingType,
+        hostname: incomingHost,
+        port: incomingPort,
+        socketType: incomingSocketType,
+      );
+    final outgoing = MailServerConfig()
+      ..authentication = outgoingAuth ?? auth
+      ..serverConfig = ServerConfig(
+        type: outgoingType,
+        hostname: outgoingHost,
+        port: outgoingPort,
+        socketType: outgoingSocketType,
+      );
+    final account = MailAccount()
+      ..name = name
+      ..email = email
+      ..incoming = incoming
+      ..outgoing = outgoing
+      ..outgoingClientDomain = outgoingClientDomain;
+    return account;
+  }
+
   @override
-  bool operator ==(o) =>
-      o is MailAccount &&
-      o.name == name &&
-      o.userName == userName &&
-      o.email == email &&
-      o.outgoingClientDomain == outgoingClientDomain &&
-      o.incoming == incoming &&
-      o.outgoing == outgoing &&
-      o.supportsPlusAliases == supportsPlusAliases &&
-      o.aliases?.length == aliases?.length &&
-      o.attributes?.length == attributes?.length;
+  bool operator ==(o) => o is MailAccount && o.name == name && o.userName == userName && o.email == email && o.outgoingClientDomain == outgoingClientDomain && o.incoming == incoming && o.outgoing == outgoing && o.supportsPlusAliases == supportsPlusAliases && o.aliases?.length == aliases?.length && o.attributes?.length == attributes?.length;
 
   @override
   String toString() {
@@ -103,46 +161,31 @@ class MailServerConfig extends SerializableObject {
   set serverConfig(ServerConfig value) => attributes['serverConfig'] = value;
 
   MailAuthentication get authentication => attributes['authentication'];
-  set authentication(MailAuthentication value) =>
-      attributes['authentication'] = value;
+  set authentication(MailAuthentication value) => attributes['authentication'] = value;
 
   List<Capability> get serverCapabilities => attributes['serverCapabilities'];
-  set serverCapabilities(List<Capability> value) =>
-      attributes['serverCapabilities'] = value;
+  set serverCapabilities(List<Capability> value) => attributes['serverCapabilities'] = value;
 
   String get pathSeparator => attributes['pathSeparator'];
   set pathSeparator(String value) => attributes['pathSeparator'] = value;
 
-  MailServerConfig(
-      {ServerConfig serverConfig,
-      MailAuthentication authentication,
-      List<Capability> serverCapabilities,
-      String pathSeparator}) {
+  MailServerConfig({ServerConfig serverConfig, MailAuthentication authentication, List<Capability> serverCapabilities, String pathSeparator}) {
     this.serverConfig = serverConfig;
     this.authentication = authentication;
     this.serverCapabilities = serverCapabilities;
     this.pathSeparator = pathSeparator;
     objectCreators['serverConfig'] = (map) => ServerConfig();
-    objectCreators['authentication'] =
-        (map) => MailAuthentication.createType(map['typeName']);
+    objectCreators['authentication'] = (map) => MailAuthentication.createType(map['typeName']);
     objectCreators['serverCapabilities'] = (map) => <Capability>[];
-    objectCreators['serverCapabilities.value'] =
-        (map) => Capability(null); //TODO make capability serializable
+    objectCreators['serverCapabilities.value'] = (map) => Capability(null); //TODO make capability serializable
   }
 
   bool supports(String capabilityName) {
-    return (serverCapabilities?.firstWhere((c) => c.name == capabilityName,
-            orElse: () => null) !=
-        null);
+    return (serverCapabilities?.firstWhere((c) => c.name == capabilityName, orElse: () => null) != null);
   }
 
   @override
-  bool operator ==(o) =>
-      o is MailServerConfig &&
-      o.pathSeparator == pathSeparator &&
-      o.serverCapabilities?.length == serverCapabilities?.length &&
-      o.authentication == authentication &&
-      o.serverConfig == serverConfig;
+  bool operator ==(o) => o is MailServerConfig && o.pathSeparator == pathSeparator && o.serverCapabilities?.length == serverCapabilities?.length && o.authentication == authentication && o.serverConfig == serverConfig;
 
   @override
   String toString() {
